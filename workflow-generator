@@ -370,6 +370,7 @@ def generate_dax():
     dax.invoke('all',  conf.get("local", "pegasus_bin") +
                        "/../share/pegasus/notification/email")
     
+    ref_urls = []
     fastq_urls = []
     read_input_lists(fastq_urls)
     # determine how many TACC compute nodes we need
