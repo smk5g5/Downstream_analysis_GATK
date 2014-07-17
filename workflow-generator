@@ -175,7 +175,9 @@ def read_input_lists(fastq_urls):
     for line in inf.readlines():
         line = line.rstrip('\n')
         line = line.rstrip('\r')
+        newline = str(line)+".idx"
         fastq_urls.append(line)
+        fastq_urls.append(newline)
     inf.close()
 
     # sanity checks
