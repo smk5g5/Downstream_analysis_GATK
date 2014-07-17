@@ -171,7 +171,7 @@ def read_input_lists(fastq_urls):
     """ The user provides a list of reference file URLs and pairs of fastq 
     URLs to be processed.
     """
-    inf = open(conf.get("local", "top_dir") + "/inputs-fastq.txt", "r")
+    inf = open(conf.get("local", "top_dir") + "/input-gvcfs.txt", "r")
     for line in inf.readlines():
         line = line.rstrip('\n')
         line = line.rstrip('\r')
