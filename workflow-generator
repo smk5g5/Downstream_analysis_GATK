@@ -175,7 +175,7 @@ def read_input_lists(fastq_urls):
     for line in inf.readlines():
         line = line.rstrip('\n')
         line = line.rstrip('\r')
-        newline = str(line)+".idx"
+        newline = line + ".idx"
         fastq_urls.append(line)
         fastq_urls.append(newline)
     inf.close()
@@ -317,7 +317,7 @@ def genotype_gvcfs(dax, software_file, ref_files, wf_files, sample_names,
 
     dax.addJob(j)
     
-def combine_gvcfs(dax, software_file, ref_files, wf_files, sample_names,
+def combine_gvcfs(sample_name, dax, software_file, ref_files, wf_files,
                    chromosome):
 
     add_executable(dax, "combine_gvcfs", "gatk-wrapper")
@@ -325,17 +325,14 @@ def combine_gvcfs(dax, software_file, ref_files, wf_files, sample_names,
                    partition = "part2")
     
     # inputs
-    variant_files = []
     j.uses(software_file, link=Link.INPUT)
     for f in ref_files:
         j.uses(f, link=Link.INPUT)
-    for sname in sample_names:
-        fname = conf.get("local", "run_id") + "-" + sname + "_" + chromosome + ".vcf"
-        f = wf_files[fname]
-        j.uses(f, link=Link.INPUT)
-        j.uses(wf_files[fname + ".idx"], link=Link.INPUT)
-        variant_files.append(f)
-
+    
+    j.uses(wf_files['vcf_files'], link=Link.INPUT)
+    j.uses(wf_files['vcf_index'], link=Link.INPUT)
+    
+    
     # outputs
     fname = conf.get("local", "run_id") + "-" + "combinegvcf_" + chromosome + ".vcf"
     wf_files[fname] = File(fname)
@@ -345,7 +342,6 @@ def combine_gvcfs(dax, software_file, ref_files, wf_files, sample_names,
     
     j.addArguments("-T", "CombineGVCFs",
                    "-R", extract_fasta_basefile(ref_files),
-                   "-o", wf_files[fname],
                    "-L", chromosome)
     for f in variant_files:
         j.addArguments("--variant", f)
@@ -361,7 +357,7 @@ def generate_dax():
     
     logger.info("Generating abstract workflow (DAX)")
     
-    dax = AutoADAG("soykb")
+    dax = AutoADAG("downstream_vcf_analysis")
     
     # The key to adding jobs to this workflow is the AutoADAG - it allows you
     # to add jobs with listed input and output files, and then the AutoADAG
@@ -394,21 +390,34 @@ def generate_dax():
     # we need to track files across jobs
     wf_files = {}
     sample_names = []
-    
-    for lane in range(len(fastq_urls)):
+    ref_files = []
+    for url in ref_urls:
+        f = File(extract_lfn(url))
+        f.addPFN(PFN(url, "irods_iplant"))
+        dax.addFile(f)
+        # put these in a list so jobs can pick them up
+        ref_files.append(f)
 
+    for lane in range(len(fastq_urls)/2):
         # input files for this lane   
-        wf_files['fastq_file'] = File(extract_lfn(fastq_urls[lane]))
-        wf_files['fastq_file'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
-        dax.addFile(wf_files['fastq_file'])
-	# handle the different line endings
-        output_name = wf_files['fastq_file'].name
-        output_name = re.sub("\.(fastq\.gz|fq\.gz|fastq|fq)$", "_fastqc.zip", output_name)
-        wf_files['zip'] = File(output_name)
-
-	logger.info("  Added input file %s with output file %s" %(wf_files['fastq_file'].name, wf_files['zip'].name))
+        file = File(extract_lfn(fastq_urls[lane]))
+        wf_files['vcf_files'] = file
+        wf_files['vcf_index'] = file.".idx"
+        wf_files['vcf_files'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
+        wf_files['vcf_index'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
         
-        # Step 1 - dependent jobs are now added in the parent jobs
+        dax.addFile(wf_files['vcf_files'])
+        dax.addFile(wf_files['vcf_index'])
+	# handle the different line endings
+	logger.info("  Added input file %s with output file %s" %(wf_files['vcf_files'].name, wf_files['vcf_index'].name))
+        for i in range(1, 21):
+        	chromosome = "Chr%02d" %(i)
+                genotype_gvcfs(dax, software_tar, ref_files, wf_files,
+                sample_names, chromosome)
+        
+        combine_variants(dax, software_tar, ref_files, wf_files)
+        
+                # Step 1 - dependent jobs are now added in the parent jobs
         fastqc_job = run_fastqc(output_name,dax,software_tar,wf_files)
         dax.depends(parent=software_job, child=fastqc_job)
         sample_names.append(output_name)
