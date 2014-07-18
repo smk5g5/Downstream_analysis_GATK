@@ -401,8 +401,7 @@ def generate_dax():
 
     for lane in range(len(fastq_urls)/2):
         # input files for this lane   
-        file = File(extract_lfn(fastq_urls[lane]))
-        wf_files['vcf_files'] = file
+        wf_files['vcf_files'] = File(extract_lfn(fastq_urls[lane]))
         wf_files['vcf_index'] = wf_files['vcf_files'].name  + ".idx"
         wf_files['vcf_files'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
         wf_files['vcf_index'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
