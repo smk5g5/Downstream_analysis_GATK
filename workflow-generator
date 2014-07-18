@@ -165,25 +165,52 @@ def generate_site_catalog():
                         pegasus_bin = conf.get("local", "pegasus_bin"),
                         irods_bin = conf.get("local", "irods_bin")))
     outf.close()
-   
-
-def read_input_lists(fastq_urls):
+#    inf = open(conf.get("local", "top_dir") + "/input-gvcfs.txt", "r")
+#    for line in inf.readlines():
+#        line = line.rstrip('\n')
+#        line = line.rstrip('\r')
+#        newline = line + ".idx"
+#        fastq_urls.append(line)
+#        fastq_urls.append(newline)
+#    inf.close()
+#
+#    # sanity checks
+#    if len(fastq_urls) == 0:
+#        logger.error("Did not find fastq files")
+#        sys.exit(1)
+def read_input_lists(ref_urls, fastq_urls):
     """ The user provides a list of reference file URLs and pairs of fastq 
     URLs to be processed.
     """
-    inf = open(conf.get("local", "top_dir") + "/input-gvcfs.txt", "r")
+    # first the reference
+    inf = open(conf.get("local", "top_dir") + "/inputs-ref.txt", "r")
     for line in inf.readlines():
         line = line.rstrip('\n')
-        line = line.rstrip('\r')
-        newline = line + ".idx"
-        fastq_urls.append(line)
-        fastq_urls.append(newline)
+        ref_urls.append(line)
+    inf.close()
+
+    inf = open(conf.get("local", "top_dir") + "/input-gvcfs.txt", "r")
+    index_files = []
+    vcf_files  = []
+    for line in inf.readlines():
+        line = line.rstrip('\n')
+        if line.endswith(".idx"):
+            index_files.append(line)
+        else:
+            vcf_files.append(line)
+    fastq_urls['vcf_files'] = vcf_files
+    fastq_urls['index_files'] = index_files
     inf.close()
 
     # sanity checks
     if len(fastq_urls) == 0:
         logger.error("Did not find fastq files")
         sys.exit(1)
+    if len(fastq_urls) % 2 != 0:
+        logger.error("Found an uneven number of fastq files in input list")
+        sys.exit(1)
+
+
 
 def extract_lfn(url):
     """ determine a logical file name (basename) from a given URL """
@@ -371,8 +398,8 @@ def generate_dax():
                        "/../share/pegasus/notification/email")
     
     ref_urls = []
-    fastq_urls = []
-    read_input_lists(fastq_urls)
+    fastq_urls = {}
+    read_input_lists(ref_urls,fastq_urls)
     # determine how many TACC compute nodes we need
     num_inputs_in_set = min(len(fastq_urls) / 2, 100)
     conf.set("exec_environment", "hosts_part1", str( (num_inputs_in_set // 16 + 1) * 4 ))
@@ -399,17 +426,19 @@ def generate_dax():
         # put these in a list so jobs can pick them up
         ref_files.append(f)
 
-    for lane in range(len(fastq_urls)/2):
+    for vcf in fastq_urls['vcf_files']:
         # input files for this lane   
-        wf_files['vcf_files'] = File(extract_lfn(fastq_urls[lane]))
-        wf_files['vcf_index'] = wf_files['vcf_files'].name  + ".idx"
-        wf_files['vcf_files'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
-        wf_files['vcf_index'].addPFN(PFN(fastq_urls[lane], "irods_iplant"))
-        
+        wf_files['vcf_files'] = File(extract_lfn(vcf))
+        wf_files['vcf_files'].addPFN(PFN(vcf,"irods_iplant"))
         dax.addFile(wf_files['vcf_files'])
+        sample_name = extract_sample_name(wf_files['vcf_files'].name)
+    for idxfile in fastq_urls['index_files']:        
+        wf_files['vcf_index'] = File(extract_lfn(idxfile))
+        wf_files['vcf_index'].addPFN(PFN(idxfile, "irods_iplant"))
         dax.addFile(wf_files['vcf_index'])
 	# handle the different line endings
 	logger.info("  Added input file %s with output file %s" %(wf_files['vcf_files'].name, wf_files['vcf_index'].name))
+	
         for i in range(1, 21):
         	chromosome = "Chr%02d" %(i)
                 genotype_gvcfs(dax, software_tar, ref_files, wf_files,
