@@ -356,21 +356,23 @@ def combine_gvcfs(sample_name, dax, software_file, ref_files, wf_files,
     for f in ref_files:
         j.uses(f, link=Link.INPUT)
     
-    j.uses(wf_files['vcf_files'], link=Link.INPUT)
-    j.uses(wf_files['vcf_index'], link=Link.INPUT)
+    for f in wf_files['vcf_files']:
+	    j.uses(wf_files['vcf_files'], link=Link.INPUT)
+    for f in wf_files['vcf_index']:
+    	j.uses(wf_files['vcf_index'], link=Link.INPUT)
     
     
     # outputs
-    fname = conf.get("local", "run_id") + "-" + "combinegvcf_" + chromosome + ".vcf"
+    fname = conf.get("local", "run_id") + "-" + "combinegvcf" + ".vcf"
     wf_files[fname] = File(fname)
     j.uses(wf_files[fname], link=Link.OUTPUT, transfer=False)
     wf_files[fname + ".idx"] = File(fname + ".idx")
     j.uses(wf_files[fname + ".idx"], link=Link.OUTPUT, transfer=False)
     
     j.addArguments("-T", "CombineGVCFs",
-                   "-R", extract_fasta_basefile(ref_files),
-                   "-L", chromosome)
-    for f in variant_files:
+                   "-R", extract_fasta_basefile(ref_files)
+				   "-o", wf_files[fname])
+    for f in wf_files['vcf_files']:
         j.addArguments("--variant", f)
 
     dax.addJob(j)
