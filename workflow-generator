@@ -345,7 +345,7 @@ def genotype_gvcfs(dax, software_file, ref_files, wf_files, sample_names,
     dax.addJob(j)
     
 def combine_gvcfs(sample_name, dax, software_file, ref_files, wf_files,
-                   chromosome):
+                   ):
 
     add_executable(dax, "combine_gvcfs", "gatk-wrapper")
     j = ComputeJob("combine_gvcfs", cores = 1, mem_gb = 10,
@@ -440,7 +440,7 @@ def generate_dax():
 	logger.info("  Added input file %s with output file %s" %(wf_files['vcf_files'].name, wf_files['vcf_index'].name))
     
     
-    combine_gvcfjob = combine_gvcfs(sample_name, dax, software_tar, ref_files, wf_files,chromosome)
+    combine_gvcfjob = combine_gvcfs(sample_name, dax, software_tar, ref_files, wf_files)
     dax.depends(parent=software_job,child=combine_gvcfjob)
     
     	
