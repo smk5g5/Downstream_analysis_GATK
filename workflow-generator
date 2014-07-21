@@ -440,20 +440,24 @@ def generate_dax():
 	# handle the different line endings
 	logger.info("  Added input file %s with output file %s" %(wf_files['vcf_files'].name, wf_files['vcf_index'].name))
 	
-        for i in range(1, 21):
-        	chromosome = "Chr%02d" %(i)
-                genotype_gvcfs(dax, software_tar, ref_files, wf_files,
-                sample_names, chromosome)
+	combine_gvcfjob = combine_gvcfs(sample_name, dax, software_tar, ref_files, wf_files)
+	dax.depends(parent=software_job,child=combine_gvcfjob)
+	
+	
+    #    for i in range(1, 21):
+     #   	chromosome = "Chr%02d" %(i)
+      #          genotype_gvcfs(dax, software_tar, ref_files, wf_files,
+       #         sample_names, chromosome)
         
-        combine_variants(dax, software_tar, ref_files, wf_files)
+        #combine_variants(dax, software_tar, ref_files, wf_files)
         
                 # Step 1 - dependent jobs are now added in the parent jobs
-        fastqc_job = run_fastqc(output_name,dax,software_tar,wf_files)
-        dax.depends(parent=software_job, child=fastqc_job)
-        sample_names.append(output_name)
-    summarize_fastqc(dax,software_tar,wf_files,sample_names)
+        #fastqc_job = run_fastqc(output_name,dax,software_tar,wf_files)
+     #   dax.depends(parent=software_job, child=fastqc_job)
+     #   sample_names.append(output_name)
+    #summarize_fastqc(dax,software_tar,wf_files,sample_names)
     # write out the dax
-    dax_file = open(conf.get("local", "work_dir") + "/fastqc.dax", "w")
+    dax_file = open(conf.get("local", "work_dir") + "/dowstr.dax", "w")
     dax.writeXML(dax_file)
     dax_file.close()
 
